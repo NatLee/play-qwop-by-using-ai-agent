@@ -1,61 +1,67 @@
+"""The original entry point, kept so the old commands still work.
+
+    python main.py                                  -> train, then run one race
+    python main.py --train False --model_path M     -> run one race with model M
+    python main.py --test_env True                  -> press random keys
+    --model_save_path P                             -> also copy the trained model to P
+    --chrome_driver_path                            -> accepted and ignored
+
+The ``qwop-agent`` command (see README) has more options. This file only maps
+the old flags onto it and can be removed once nobody uses them.
+"""
+
+from __future__ import annotations
+
+import argparse
 import ast
 import logging
-import argparse
+import shutil
+from pathlib import Path
 
-from QWOP import QWOP
+DEFAULT_MODEL = Path(__file__).with_name("model") / "qwop-ppo.zip"
 
-from modelUtils import CNNModel, A2CAgent
 
-if __name__ == '__main__':
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Play QWOP with a reinforcement learning agent (legacy flags).")
+    parser.add_argument("--train", type=ast.literal_eval, default=True, help='Train the model: "True" or "False".')
+    parser.add_argument("--model_path", type=Path, default=None, help="Model to load (a .zip saved by training).")
+    parser.add_argument("--model_save_path", type=Path, default=None, help="Copy the trained model here.")
+    parser.add_argument(
+        "--test_env", type=ast.literal_eval, default=False, help='Press random keys: "True" or "False".'
+    )
+    parser.add_argument(
+        "--chrome_driver_path", type=str, default=None, help="Ignored: Playwright manages the browser now."
+    )
+    return parser.parse_args(argv)
 
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(levelname)s %(message)s',
-                        datefmt='%Y-%m-%d %H:%M')
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--train', type=ast.literal_eval, default=True, help='Training the model. The input should be either "True" or "False".')
-    parser.add_argument('--model_path', type=str, default=None, help='Model weights path. If you assign a path, the model will load the weights.')
-    parser.add_argument('--model_save_path', type=str, default=None, help='Model save path. If you don\'t specific, the model won\'t be saved.')
-    parser.add_argument('--test_env', type=ast.literal_eval, default=False, help='Use random action to test QWOP environment. The input should be either "True" or "False".')
-    parser.add_argument('--chrome_driver_path', type=str, default='./webdriver/chromedriver', help='Specific your chrome driver path to run the selenium.')
-    args = parser.parse_args()
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M")
+    if args.chrome_driver_path:
+        logging.warning("--chrome_driver_path is no longer needed and is ignored (Playwright brings its own browser)")
 
-    # start a environment
-    env = QWOP(args.chrome_driver_path)
-    env.start()
+    if args.test_env:
+        from qwop_agent.evaluate import play_random
 
-    if not args.test_env:
-        # build a model
-        model = CNNModel(num_actions=5)
+        play_random(episodes=None)
+        return 0
 
-        # test environment with model
-        model.action_value(env.reset()[None, :])
+    from qwop_agent.evaluate import evaluate
 
-        if args.model_path is not None:
-            logging.info('Now loading model weights...')
-            model.load_weights(args.model_path)
+    model = args.model_path
+    if args.train:
+        from qwop_agent.train import TrainSettings, train
 
-        # start a agent
-        agent = A2CAgent(model)
-        
-        if args.train:
-            # training
-            logging.info('Start training ...')
-            rewards_history = agent.train(env)
-            logging.info('Training Completed')
-
-        # testing
-        logging.info('Start testing ...')
-        total_rewards = agent.test(env)
-        logging.info(f'Total Episode Reward: {total_rewards}')
-
+        model = train(TrainSettings(resume=args.model_path))
         if args.model_save_path is not None:
-            logging.info('Now saving model weights...')
-            model.save_weights(args.model_save_path)
+            args.model_save_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(model, args.model_save_path)
+            logging.info("model saved to %s", args.model_save_path)
+    races = evaluate(model or DEFAULT_MODEL)
+    logging.info("Total Episode Reward: %.2f", races[0].reward)
+    return 0
 
-    else:
-        while True:
-            observation, reward, done = env.execute_action("random_go")
-            if done:
-                logging.info(f'reward {reward}')
-                env.reset()
+
+if __name__ == "__main__":
+    raise SystemExit(main())

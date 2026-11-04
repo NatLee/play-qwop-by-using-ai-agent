@@ -1,7 +1,0 @@
-tensorflow==2.9.3
-tqdm
-selenium
-pytesseract
-pynput
-numpy
-opencv-python
