@@ -1,0 +1,39 @@
+name: CI
+
+# Tests use a fake game page and a tiny local WebGL page; they never load the
+# real QWOP from foddy.net.
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TESSDATA_PREFIX: /usr/share/tesseract-ocr/5/tessdata/
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install Tesseract language data
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr-eng
+      - name: Install the package (CPU PyTorch)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e ".[train,dev]"
+          playwright install --with-deps --only-shell chromium
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Test
+        run: pytest -q

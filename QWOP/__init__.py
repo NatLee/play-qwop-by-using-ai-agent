@@ -1,3 +1,0 @@
-
-
-from .QWOP import QWOP

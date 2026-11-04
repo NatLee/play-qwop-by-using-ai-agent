@@ -1,9 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+build/
+dist/
 
-.vscode
+# Training output (checkpoints, logs, TensorBoard)
+runs/
 
-__pycache__
-
+# Editors and OS
+.vscode/
+.idea/
 .DS_Store
-
 desktop.ini
-
