@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qwop-agent"
+dynamic = ["version"]
+description = "Teach a PPO agent to run 100 m in the official browser version of QWOP."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+authors = [{ name = "Nat Lee" }]
+dependencies = [
+    "gymnasium>=1.0",
+    "numpy>=1.26",
+    "pillow>=10.0",
+    "playwright>=1.48",
+    "tesserocr>=2.7",
+]
+
+[project.optional-dependencies]
+train = [
+    "torch>=2.8",
+    "stable-baselines3>=2.6",
+    "tensorboard>=2.16",
+    "matplotlib>=3.8",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+qwop-agent = "qwop_agent.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/NatLee/play-qwop-by-using-ai-agent"
+
+[tool.setuptools]
+packages = ["qwop_agent"]
+
+[tool.setuptools.dynamic]
+version = { attr = "qwop_agent.__version__" }
+
+[tool.setuptools.package-data]
+qwop_agent = ["clock.js"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["browser: needs Playwright's Chromium (but never the real game)"]
